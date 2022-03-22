@@ -77,6 +77,11 @@ module.private = {
             :flag("w", "Waiting For", neorg.lib.wrap(module.public.display_waiting_for, tasks))
             :flag("d", "Someday Tasks", neorg.lib.wrap(module.public.display_someday, tasks))
             :blank()
+            :text("Weekly")
+            :flag("x", "This week", neorg.lib.wrap(module.public.display_this_week, tasks))
+            :flag("y", "Next week", neorg.lib.wrap(module.public.display_next_week, tasks))
+            :flag("z", "Choose week", neorg.lib.wrap(module.public.display_week, tasks))
+            :blank()
             :concat(module.private.generate_informations)
         return selection
     end,

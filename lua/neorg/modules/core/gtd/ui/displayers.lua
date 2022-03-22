@@ -385,6 +385,108 @@ module.public = {
         return module.private.generate_display(name, positions, res)
     end,
 
+    --- Display this weeks tasks
+    display_this_week = function(tasks)
+        --[[ Instead of this, just write something fancy to get the day of the week and add it into the title of the other week picker ]]
+        --
+        print("tasks")
+        P(tasks)
+        local name = "This weeks Summary"
+        local res = {
+            "* " .. name,
+            "",
+            "This is a summary of your tasks due for each day this working week (Sunday - Saturday)",
+            "",
+        }
+
+        local positions = {}
+
+        local filter_upcoming_tasks = function(task, day)
+            local due = false
+            local start = false
+            if task["time.start"] then
+                start = task["time.start"][1] == day
+            end
+            if task["time.due"] then
+                due = task["time.due"][1] == day
+            end
+
+            return task.state ~= "done" and (due or start)
+        end
+
+        local days = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }
+
+        local day_in_s = 24 * 60 * 60
+        local today = os.date("*t")
+        local days_since_first_day_of_week = 1 - today.wday
+        local first_day_of_week = os.time() - (day_in_s * days_since_first_day_of_week)
+
+        for i, day in ipairs(days) do
+            local day_as_date = first_day_of_week + (day_in_s * (i - 1))
+            local date = module.required["core.gtd.queries"].date_converter(day)
+
+            local day_index = os.date("%w")
+            table.insert(res, "")
+            if day_index == tostring(i - 1) then
+                table.insert(res, "** " .. day .. " " .. os.date("%x", day_as_date) .. "  ---TODAY---")
+
+                local today_tasks = vim.tbl_filter(module.private.today_task, tasks)
+                for _, t in pairs(today_tasks) do
+                    local result = "- " .. t.content
+                    if t.contexts then
+                        if vim.tbl_contains(t.contexts, "today") then
+                            result = result .. ", `marked as today`"
+                        end
+                    end
+                    if t["time.start"] then
+                        local diff = module.required["core.gtd.queries"].diff_with_today(t["time.start"][1])
+                        if diff.weeks == 0 and diff.days == 0 then
+                            result = result .. ", `starting today`"
+                        end
+                    end
+                    if t["time.due"] then
+                        local diff = module.required["core.gtd.queries"].diff_with_today(t["time.due"][1])
+                        if diff.weeks == 0 and diff.days == 0 then
+                            result = result .. ", `due for today`"
+                        elseif diff.weeks < 0 or diff.days < 0 then
+                            result = result .. ", `overdue: " .. t["time.due"][1] .. "`"
+                        end
+                    end
+                    table.insert(res, result)
+                    positions[#res] = t
+                end
+            else
+                table.insert(res, "** " .. day .. " " .. os.date("%x", day_as_date))
+            end
+            table.insert(res, "")
+
+            local filtered_tasks = vim.tbl_filter(function(t)
+                return filter_upcoming_tasks(t, date)
+            end, tasks)
+
+            table.insert(res, "")
+            for _, t in pairs(filtered_tasks) do
+                local result = "- " .. t.content
+                if t["time.start"] then
+                    local diff = module.required["core.gtd.queries"].diff_with_today(t["time.start"][1])
+                    if diff.weeks == 0 and diff.days == i then
+                        result = result .. ", `starting this day`"
+                    end
+                end
+                if t["time.due"] then
+                    local diff = module.required["core.gtd.queries"].diff_with_today(t["time.due"][1])
+                    if diff.weeks == 0 and diff.days == i then
+                        result = result .. ", `due this day`"
+                    end
+                end
+                table.insert(res, result)
+                positions[#res] = t
+            end
+        end
+
+        return module.private.generate_display(name, positions, res)
+    end,
+
     --- Display weekly summary
     --- @param tasks core.gtd.queries.task
     --- @return number #Created bufnr
@@ -758,5 +860,6 @@ module.private = {
         vim.api.nvim_buf_set_option(module.private.current_bufnr, "modifiable", false)
     end,
 }
+-- module.public.display_this_week({})
 
 return module
